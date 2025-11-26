@@ -2,6 +2,8 @@
 
 Provides [Elephant][elephant] with notification history from [Dunst][dunst]. Actioning a notification will make Dunst replay it, allowing you to see the full summary and all the usual, as if the notification was new.
 
+![image of Walker displaying two recent notifications as a visual example](https://github.com/user-attachments/assets/75ad5793-05cc-4d96-97db-e2a4e2ac44ab)
+
 ### Prerequisites
 
 - Installed & running:
