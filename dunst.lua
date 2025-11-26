@@ -50,7 +50,7 @@ end
 
 local function find_desktop_file(appname)
 	-- appname may already be like "firefox.desktop" or just "firefox" or "org.mozilla.firefox"
-	if not appname or appname == "" then return nil end
+	if not appname or appname == "" or appname:match("['\\]") then return nil end -- reject names with quotes or backslashes for safety
 	local name = appname:gsub("^%s+", ""):gsub("%s+$", "")
 	-- if provided with a .desktop name, try that first
 	local try_names = {}
