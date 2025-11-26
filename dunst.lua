@@ -25,6 +25,7 @@ HideFromProviderlist = false
 Description = "Show recent notifications from Dunst notification daemon."
 SearchName = true
 History = false
+HistoryWhenEmpty = false
 FixedOrder = true
 
 local function get_uptime()
@@ -110,21 +111,19 @@ function GetEntries()
 	if handle then
 		local entry = {}
 		local linecount = 0
-		local time = os.date("%H:%M:%S", os.time())
 		for line in handle:lines() do
 			linecount = linecount + 1
 			if linecount % 4 == 0 then
 				entry["Value"] = line
-				time = ""
-				entries[#entries + 1] = entry
+				table.insert(entries, entry)
 				entry = {}
 			elseif linecount % 4 == 1 then
-				time = os.date("%H:%M:%S", dunst_ts_to_time(line))
+				entry["_timestamp"] = dunst_ts_to_time(line)
 			elseif linecount % 4 == 2 then
 				-- appname field: try to resolve a matching .desktop filename and extract its Icon
 				local appname_raw = line:gsub('"', ''):gsub('\\\"', '"')
 				-- build subtext
-				entry["Subtext"] = time .. " - " .. appname_raw
+				entry["Subtext"] = os.date("%H:%M:%S", entry["_timestamp"]) .. " - " .. appname_raw
 				-- find matching .desktop and icon
 				local desktop_path = find_desktop_file(appname_raw)
 				if desktop_path then
@@ -143,11 +142,10 @@ function GetEntries()
 		handle:close()
 	end
 
-	-- reverse entries to have most recent first
-	local rev_entries = {}
-	for i = #entries, 1, -1 do
-		rev_entries[#rev_entries + 1] = entries[i]
-	end
+	-- Order by timestamp
+	table.sort(entries, function(a, b)
+		return (a["_timestamp"] or 0) > (b["_timestamp"] or 0)
+	end)
 
-	return rev_entries
+	return entries
 end
