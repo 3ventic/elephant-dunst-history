@@ -19,11 +19,13 @@
 Name = "notification-history"
 NamePretty = "Notification History"
 Icon = "applications-other"
-Cache = true
+Cache = false
 Action = "dunstctl history-pop %VALUE%"
 HideFromProviderlist = false
 Description = "Show recent notifications from Dunst notification daemon."
 SearchName = true
+History = false
+FixedOrder = true
 
 local function get_uptime()
 	local f = io.open("/proc/uptime", "r")
@@ -134,10 +136,19 @@ function GetEntries()
 				end
 			elseif linecount % 4 == 3 then
 				entry["Text"] = line:gsub('"', ''):gsub("\\\"", '"')
+				if entry["Text"] == "" then
+					entry["Text"] = "(no message)"
+				end
 			end
 		end
 		handle:close()
 	end
 
-	return entries
+	-- reverse entries to have most recent first
+	local rev_entries = {}
+	for i = #entries, 1, -1 do
+		rev_entries[#rev_entries + 1] = entries[i]
+	end
+
+	return rev_entries
 end
