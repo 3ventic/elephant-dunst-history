@@ -104,7 +104,6 @@ end
 
 function GetEntries()
 	local entries = {}
-	local seen_ids = {}
 
 	local handle = io.popen("dunstctl history | jq '.data[][]|.timestamp.data,.appname.data,.body.data,.id.data'")
 
