@@ -45,6 +45,61 @@ local function dunst_ts_to_time(ts)
 	return unix_ts
 end
 
+local function find_desktop_file(appname)
+	-- appname may already be like "firefox.desktop" or just "firefox" or "org.mozilla.firefox"
+	if not appname or appname == "" then return nil end
+	local name = appname:gsub("^%s+", ""):gsub("%s+$", "")
+	-- if provided with a .desktop name, try that first
+	local try_names = {}
+	if name:match("%.desktop$") then
+		table.insert(try_names, name)
+	else
+		table.insert(try_names, name .. ".desktop")
+		table.insert(try_names, "*" .. name .. ".desktop") -- match trailing names like org.foo.NAME.desktop
+	end
+
+	local home = os.getenv("HOME") or ""
+	local data_home = os.getenv("XDG_DATA_HOME") or (home .. "/.local/share")
+	local data_dirs = os.getenv("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"
+	local search_dirs = { data_home .. "/applications" }
+	for dir in data_dirs:gmatch("([^:]+)") do
+		table.insert(search_dirs, dir .. "/applications")
+	end
+
+	for _, d in ipairs(search_dirs) do
+		for _, pattern in ipairs(try_names) do
+			-- search only at depth 1 (desktop files usually live directly in applications/)
+			local cmd = string.format("find '%s' -maxdepth 1 -type f -iname '%s' -print -quit 2>/dev/null", d, pattern)
+			local h = io.popen(cmd)
+			if h then
+				local path = h:read("*l")
+				h:close()
+				if path and path ~= "" then
+					return path
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function desktop_icon_from_file(path)
+	if not path then return nil end
+	local f = io.open(path, "r")
+	if not f then return nil end
+	for line in f:lines() do
+		local v = line:match("^%s*Icon%s*=%s*(.+)")
+		if v then
+			f:close()
+			-- trim whitespace/newline
+			v = v:gsub("^%s+", ""):gsub("%s+$", "")
+			return v
+		end
+	end
+	f:close()
+	return nil
+end
+
 function GetEntries()
 	local entries = {}
 	local seen_ids = {}
@@ -65,7 +120,18 @@ function GetEntries()
 			elseif linecount % 4 == 1 then
 				time = os.date("%H:%M:%S", dunst_ts_to_time(line))
 			elseif linecount % 4 == 2 then
-				entry["Subtext"] = time .. " - " .. line:gsub('"', ''):gsub("\\\"", '"')
+				-- appname field: try to resolve a matching .desktop filename and extract its Icon
+				local appname_raw = line:gsub('"', ''):gsub('\\\"', '"')
+				-- build subtext
+				entry["Subtext"] = time .. " - " .. appname_raw
+				-- find matching .desktop and icon
+				local desktop_path = find_desktop_file(appname_raw)
+				if desktop_path then
+					local icon = desktop_icon_from_file(desktop_path)
+					if icon and icon ~= "" then
+						entry["Icon"] = icon
+					end
+				end
 			elseif linecount % 4 == 3 then
 				entry["Text"] = line:gsub('"', ''):gsub("\\\"", '"')
 			end
